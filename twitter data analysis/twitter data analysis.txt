@@ -1,0 +1,36 @@
+===================hive twitter analysis========================
+Add jar /opt/apache-hive-2.1.1-bin/lib/hive-serdes-1.0-SNAPSHOT.jar;
+step=>1
+create external table load_tweets(id BIGINT,
+text STRING)ROW FORMAT SERDE 'com.cloudera.hive.serde.JSONSerDe' LOCATION '/twitter_data1/';
+step=>2
+describe load_tweets;
+step=>3
+select * from load_tweets;
+step=>4
+create table split_words as select id as id,split(text,' ') as words from load_tweets;
+step=>5
+create table tweet_word as select id as id,
+word from split_words 
+LATERAL VIEW explode(words) w as word;
+
+step=>6
+select * from tweet_word;
+step=>7
+create table dictionary(word string,rating int) ROW FORMAT DELIMITED FIELDS TERMINATED BY '\t';
+step=>8
+LOAD DATA INPATH '/opt/AFINN.txt' into TABLE dictionary;
+step=>9
+select * from dictionary;
+step=>10
+
+create table word_join as select tweet_word.id,
+tweet_word.word,
+dictionary.rating 
+from tweet_word 
+LEFT OUTER JOIN dictionary ON(tweet_word.word =dictionary.word);
+step=>11
+select * from word_join;
+step=>12
+select id,AVG(rating) as rating from word_join GROUP BY word_join.id order by rating DESC;
+step=>13
